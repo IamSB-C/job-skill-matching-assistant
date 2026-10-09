@@ -1,0 +1,137 @@
+{
+  "name": "Job Application and Skill Matching Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": " Job Application and Skill-Matching Assistant",
+        "formDescription": "Enter your details to find jobs that match your skills.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Candidate Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "skills",
+              "fieldType": "textarea",
+              "placeholder": "Python, JavaScript, SQL, HTML, CSS",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Preferred Role",
+              "placeholder": "AI intern",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Interests",
+              "fieldType": "textarea",
+              "placeholder": "AI, Web Development, Automation",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -368,
+        208
+      ],
+      "id": "c78cfd81-1dba-40a4-9b96-63e2fb1b42fa",
+      "name": "On form submission",
+      "webhookId": "d8cc48fb-06d3-4918-96da-c2fc9b16194f"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst candidate = {\n  name: $json.candidateName,\n  skills: String($json.skills ?? \"\")\n    .split(\",\")\n    .map(s => s.trim().toLowerCase())\n    .filter(Boolean),\n  preferredRole: $json.preferredRole,\n  interests: String($json.interests ?? \"\")\n    .split(\",\")\n    .map(s => s.trim())\n    .filter(Boolean)\n};\n\nconst jobs = [\n  {\n    title: \"AI Intern\",\n    company: \"Example AI Company\",\n    skills: [\"Python\", \"Machine Learning\", \"SQL\"]\n  },\n  {\n    title: \"Web Development Intern\",\n    company: \"Example Web Company\",\n    skills: [\"HTML\", \"CSS\", \"JavaScript\"]\n  },\n  {\n    title: \"Data Analyst Intern\",\n    company: \"Example Data Company\",\n    skills: [\"Python\", \"SQL\", \"Excel\"]\n  }\n];\n\nreturn jobs.map(job => {\n  const matchedSkills = job.skills.filter(skill =>\n    candidate.skills.includes(skill.toLowerCase())\n  );\n\n  const missingSkills = job.skills.filter(\n    skill => !matchedSkills.includes(skill)\n  );\n\n  return {\n    json: {\n      candidate: candidate.name,\n      preferredRole: candidate.preferredRole,\n      jobTitle: job.title,\n      company: job.company,\n      requiredSkills: job.skills,\n      matchedSkills,\n      missingSkills,\n      matchPercentage: Math.round(\n        (matchedSkills.length / job.skills.length) * 100\n      )\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        208
+      ],
+      "id": "dfc1aa13-eeaa-4af7-b7ec-7b71425e1860",
+      "name": "Job matching-form input1"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "responseText": "={{ $json.resultHtml }}"
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        304,
+        208
+      ],
+      "id": "4377ec4c-52f2-417b-b44d-f9f805f81a3a",
+      "name": "Form",
+      "webhookId": "4089dc9f-e5d4-41c2-bbc3-6eea404753e7"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst results = $input.all().map(item => item.json);\n\nconst escapeHtml = value => String(value ?? \"\").replace(/[&<>\"']/g, char => ({\n  \"&\": \"&amp;\",\n  \"<\": \"&lt;\",\n  \">\": \"&gt;\",\n  '\"': \"&quot;\",\n  \"'\": \"&#39;\"\n}[char]));\n\nconst firstJob = results[0] || {};\nconst preferredRole = firstJob.preferredRole || \"your preferred role\";\n\n// Collect missing skills from all job matches without duplicates.\nconst allMissing = [...new Set(\n  results.flatMap(job => job.missingSkills || [])\n)];\n\nconst allMatched = [...new Set(\n  results.flatMap(job => job.matchedSkills || [])\n)];\n\nconst roleText = String(preferredRole).toLowerCase();\n\n// Choose project ideas based on the preferred role.\nlet projects;\n\nif (/data|analyst/.test(roleText)) {\n  projects = [\n    \"Student Performance Analysis using Python and Excel\",\n    \"Sales Data Dashboard using SQL and a charting tool\"\n  ];\n} else if (/web|frontend|front-end/.test(roleText)) {\n  projects = [\n    \"Personal Portfolio Website using HTML and CSS\",\n    \"Task Tracker using JavaScript\"\n  ];\n} else if (/ai|machine learning|ml/.test(roleText)) {\n  projects = [\n    \"Student Score Prediction using Python\",\n    \"Simple Movie Recommendation System\"\n  ];\n} else {\n  projects = [\n    \"Personal Portfolio Website showcasing your skills\",\n    \"Student Task Tracker with a simple progress report\"\n  ];\n}\n\n// Build a roadmap using the candidate's actual missing skills.\nconst roadmap = [];\n\nif (allMissing.length === 0) {\n  roadmap.push(\n    [\"Week 1\", \"Revise your existing skills and practise fundamentals.\"],\n    [\"Week 2\", \"Build a small project using your strongest skills.\"],\n    [\"Week 3\", \"Improve the project and document how it works.\"],\n    [\"Week 4\", \"Practise interview questions and prepare your portfolio.\"]\n  );\n} else {\n  const skillGroups = [\n    allMissing.slice(0, 2),\n    allMissing.slice(2, 4),\n    allMissing.slice(4, 6),\n    allMissing.slice(6)\n  ];\n\n  const activities = [\n    \"Learn the basics and practise simple exercises.\",\n    \"Continue learning and solve beginner practice problems.\",\n    \"Use what you learned to build a small project.\",\n    \"Revise, improve your project, and practise explaining your work.\"\n  ];\n\n  for (let i = 0; i < 4; i++) {\n    const skills = skillGroups[i];\n    let description;\n\n    if (skills.length > 0) {\n      description = `Focus on ${skills.join(\" and \")}. ${activities[i]}`;\n    } else {\n      description = activities[i];\n    }\n\n    roadmap.push([`Week ${i + 1}`, description]);\n  }\n}\n\nconst roadmapHtml = roadmap.map(([week, description]) => `\n  <div class=\"week\">\n    <strong>${escapeHtml(week)}</strong>\n    <p>${escapeHtml(description)}</p>\n  </div>\n`).join(\"\");\n\nconst projectsHtml = projects.map(project => `\n  <li>${escapeHtml(project)}</li>\n`).join(\"\");\n\nconst skillsAdvice = allMissing.length\n  ? `Prioritise learning ${allMissing.slice(0, 3).join(\", \")}.`\n  : \"You have matched all the listed skills across these sample jobs. Practise interviews and strengthen your portfolio.\";\n\nconst adviceFor = job => {\n  const missing = job.missingSkills || [];\n  const matched = job.matchedSkills || [];\n\n  if (missing.length === 0) {\n    return \"You have all the listed skills for this sample job. Practise interview questions and build a project to demonstrate your skills.\";\n  }\n\n  let advice = `Start by learning ${missing[0]}.`;\n\n  if (missing.length > 1) {\n    advice += ` Next, focus on ${missing.slice(1).join(\" and \")}.`;\n  }\n\n  advice += \" Build a small project using these skills and add it to your portfolio.\";\n\n  if (matched.length > 0) {\n    advice += ` Continue practising ${matched.join(\" and \")} too.`;\n  }\n\n  return advice;\n};\n\nconst cards = results.map(job => {\n  const percent = Math.max(\n    0, Math.min(100, Number(job.matchPercentage) || 0)\n  );\n\n  const matched = (job.matchedSkills || []).map(escapeHtml);\n  const missing = (job.missingSkills || []).map(escapeHtml);\n\n  return `\n    <section class=\"card\">\n      <h2>${escapeHtml(job.jobTitle)}</h2>\n      <p class=\"company\">${escapeHtml(job.company)}</p>\n      <div class=\"score\">${percent}% match</div>\n      <div class=\"track\">\n        <div class=\"fill\" style=\"width:${percent}%\"></div>\n      </div>\n      <p><strong>Matched skills:</strong> ${matched.join(\", \") || \"None\"}</p>\n      <p><strong>Skills to learn:</strong> ${missing.join(\", \") || \"None\"}</p>\n      <div class=\"advice\">\n        <strong>Your next steps</strong>\n        <p>${escapeHtml(adviceFor(job))}</p>\n      </div>\n    </section>\n  `;\n}).join(\"\");\n\nconst totalJobs = results.length;\n\nconst bestJob = results.reduce((best, job) => {\n  if (!best) return job;\n  return Number(job.matchPercentage || 0) >\n    Number(best.matchPercentage || 0) ? job : best;\n}, null);\n\nconst highestMatch = bestJob\n  ? Math.max(0, Math.min(100, Number(bestJob.matchPercentage) || 0))\n  : 0;\n\nconst skillsToLearnCount = allMissing.length;\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Your Job Match Report</title>\n<style>\n  body {\n    font-family: Arial, sans-serif;\n    max-width: 760px;\n    margin: 0 auto;\n    padding: 24px;\n    background: #f4f7fb;\n    color: #172033;\n  }\n  h1 { margin-bottom: 8px; }\n  h2 { margin: 0 0 6px; font-size: 21px; }\n  h3 { margin-top: 0; }\n  .intro { color: #596579; margin-bottom: 24px; }\n  .card, .roadmap, .projects {\n    background: white;\n    border: 1px solid #e0e6ef;\n    border-radius: 14px;\n    padding: 20px;\n    margin: 16px 0;\n  }\n  .company { color: #68758a; margin: 0 0 16px; }\n  .score { font-size: 24px; font-weight: bold; color: #16784a; }\n  .track {\n    background: #e6ebf2;\n    height: 9px;\n    border-radius: 20px;\n    overflow: hidden;\n    margin: 10px 0 18px;\n  }\n  .fill { background: #20a464; height: 100%; }\n  .advice {\n    background: #eef6ff;\n    padding: 14px;\n    border-radius: 10px;\n    margin-top: 16px;\n  }\n  .advice p, .week p { margin-bottom: 0; line-height: 1.5; }\n  .week {\n    border-left: 3px solid #20a464;\n    padding: 8px 12px;\n    margin: 12px 0;\n    background: #f7fafc;\n  }\n  li { line-height: 1.8; }\n  p { line-height: 1.5; }\n  footer { color: #68758a; font-size: 12px; margin-top: 24px; }\n  \n.dashboard {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 14px;\n  margin: 20px 0;\n}\n\n.stat {\n  background: white;\n  border: 1px solid #e0e6ef;\n  border-radius: 14px;\n  padding: 18px;\n  min-width: 0;\n  box-shadow: 0 3px 10px rgba(23, 32, 51, 0.04);\n}\n\n.stat-label {\n  color: #68758a;\n  font-size: 13px;\n  margin-bottom: 8px;\n}\n\n.stat-value {\n  font-size: 25px;\n  font-weight: bold;\n  color: #16784a;\n  overflow-wrap: anywhere;\n}\n\n@media (max-width: 480px) {\n  body {\n    padding: 14px;\n  }\n\n  .dashboard {\n    gap: 8px;\n  }\n\n  .stat {\n    padding: 12px;\n  }\n\n  .stat-value {\n    font-size: 20px;\n  }\n}\n\n</style>\n</head>\n<body>\n  <h1>Your Job Match Report</h1>\n  <p class=\"intro\">\n    Preferred role: ${escapeHtml(preferredRole)}.\n    Review your learning plan and job matches below.\n  </p>\n\n<div class=\"dashboard\">\n  <div class=\"stat\">\n    <div class=\"stat-label\">Sample Jobs Analysed</div>\n    <div class=\"stat-value\">${totalJobs}</div>\n  </div>\n\n  <div class=\"stat\">\n    <div class=\"stat-label\">Highest Match</div>\n    <div class=\"stat-value\">${highestMatch}%</div>\n  </div>\n\n  <div class=\"stat\">\n    <div class=\"stat-label\">Best-Matching Job</div>\n    <div class=\"stat-value\" style=\"font-size:17px\">\n      ${escapeHtml(bestJob?.jobTitle || \"No results\")}\n    </div>\n  </div>\n\n  <div class=\"stat\">\n    <div class=\"stat-label\">Unique Skills to Learn</div>\n    <div class=\"stat-value\">${skillsToLearnCount}</div>\n  </div>\n</div>\n\n  <section class=\"roadmap\">\n    <h3>Your 4-Week Learning Roadmap</h3>\n    <p>${escapeHtml(skillsAdvice)}</p>\n    ${roadmapHtml}\n  </section>\n\n  <section class=\"projects\">\n    <h3>Beginner Portfolio Project Ideas</h3>\n    <p>Choose one project and build it step by step.</p>\n    <ul>${projectsHtml}</ul>\n  </section>\n\n  <h2>Job Match Results</h2>\n  ${cards}\n\n  <footer>\n    These are sample job profiles, not live vacancies.\n    Match percentages use the listed skills only.\n    Learning plans and recommendations are generated using\n    programmed rules, not a generative AI model.\n  </footer>\n</body>\n</html>`;\n\nreturn [{ json: { resultHtml: html } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        208
+      ],
+      "id": "37c20cd3-370d-4134-bcce-971e461d4cf2",
+      "name": "format results"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Job matching-form input1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job matching-form input1": {
+      "main": [
+        [
+          {
+            "node": "format results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format results": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "21662595-43cd-425b-89a8-7041b9d3347f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5384edeff711bcc96f73b680458f473fd795f7dd9cba3e37ee9bd422b3e62f3a"
+  },
+  "nodeGroups": [],
+  "id": "llrSVqtUXocN6rvN",
+  "tags": []
+}
